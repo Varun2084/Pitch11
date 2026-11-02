@@ -63,6 +63,23 @@ def bowler_runs(d):
     return d["runs"]["batter"] + e.get("wides", 0) + e.get("noballs", 0)
 
 
+def how_out(w, bowler):
+    k, f = w["kind"], [x.get("name", "") for x in w.get("fielders", [])]
+    if k == "caught":
+        return f"c {f[0] if f else 'sub'} b {bowler}"
+    if k == "caught and bowled":
+        return f"c & b {bowler}"
+    if k == "bowled":
+        return f"b {bowler}"
+    if k == "lbw":
+        return f"lbw b {bowler}"
+    if k == "stumped":
+        return f"st {f[0] if f else ''} b {bowler}".replace("  ", " ")
+    if k == "run out":
+        return f"run out ({', '.join(f)})" if f else "run out"
+    return k
+
+
 def new_bat():
     return [0] * 7  # innings, runs, balls, fours, sixes, dots, outs
 
@@ -85,6 +102,7 @@ class Book:
         self.log = defaultdict(list)  # pid -> innings log
         self.matches, self.venues = [], defaultdict(list)
         self.deliveries = 0
+        self.cards = {}
         self.india = set()
         self.team_year = set()  # (pid, comp, year, team)
 
@@ -101,6 +119,10 @@ class Book:
                "event": info.get("event", {}).get("name", ""), "winner": team(outcome.get("winner") or outcome.get("eliminator") or ""),
                "result": outcome.get("result", ""), "by": outcome.get("by", {}), "method": method or "",
                "stage": str(info.get("event", {}).get("stage", "") or ""), "inn": []}
+        toss = info.get("toss", {})
+        card = {"toss": f'{team(toss["winner"])} chose to {toss["decision"]}' if toss.get("winner") else "",
+                "pom": info.get("player_of_match", []), "city": info.get("city", ""), "inn": []}
+        self.cards[mid] = card
         for side, players in info.get("players", {}).items():
             for n in players:
                 pid = reg.get(n)
@@ -117,6 +139,12 @@ class Book:
         for idx, inn in enumerate(i for i in m["innings"] if not i.get("super_over")):
             ik = (mid, idx)
             runs = wkts = lb = 0
+            cb, cw, fow, extras, order = {}, {}, [], 0, []
+            def seat(n):
+                if n not in cb:
+                    cb[n] = {"n": n, "id": reg.get(n), "r": 0, "b": 0, "f": 0, "s": 0, "how": "not out"}
+                    order.append(n)
+                return cb[n]
             pbat, pbowl = defaultdict(lambda: [0, 0, 0]), defaultdict(lambda: [0, 0, 0])
             for ov in inn.get("overs", []):
                 ph = phase(ov["over"])
@@ -126,6 +154,16 @@ class Book:
                     br, bf = d["runs"]["batter"], balls_faced(d)
                     runs += d["runs"]["total"]
                     lb += legal(d)
+                    extras += d["runs"].get("extras", 0)
+                    sb = seat(d["batter"]); seat(d["non_striker"])
+                    sb["r"] += br; sb["b"] += bf
+                    if br == 4 and not d["runs"].get("non_boundary"): sb["f"] += 1
+                    if br == 6: sb["s"] += 1
+                    sw = cw.setdefault(d["bowler"], {"n": d["bowler"], "id": bowl_id, "l": 0, "r": 0, "w": 0, "wd": 0, "nb": 0, "dots": 0})
+                    sw["l"] += legal(d); sw["r"] += bowler_runs(d)
+                    sw["wd"] += 1 if "wides" in d.get("extras", {}) else 0
+                    sw["nb"] += 1 if "noballs" in d.get("extras", {}) else 0
+                    sw["dots"] += 1 if legal(d) and d["runs"]["total"] == 0 else 0
                     pbat[bat_id][0] += br
                     pbat[bat_id][1] += bf
                     for p in (ph, 0):
@@ -157,8 +195,12 @@ class Book:
                     for w in d.get("wickets", []):
                         kind = w["kind"]
                         out = reg.get(w["player_out"])
+                        seat(w["player_out"])["how"] = how_out(w, d["bowler"])
+                        if kind in BOWLER_WICKETS:
+                            sw["w"] += 1
                         if kind not in NOT_DISMISSED:
                             wkts += 1
+                            fow.append({"s": runs, "w": wkts, "p": w["player_out"], "o": f'{ov["over"]}.{min(sum(legal(x) for x in ov["deliveries"][:ov["deliveries"].index(d) + 1]), 6)}'})
                             for p in (ph, 0):
                                 self.bat[(out, comp, year, p)][6] += 1
                             pbat[out][2] += 1
@@ -179,6 +221,11 @@ class Book:
                 self.log[pid].append([date, comp, team(inn["team"]), "bowl", w, r, l])
             target = inn.get("target", {})
             rec["inn"].append({"team": team(inn["team"]), "runs": runs, "wkts": wkts, "balls": lb, "tovers": target.get("overs")})
+            side = team(inn["team"])
+            xi = next((v for k, v in info.get("players", {}).items() if team(k) == side), [])
+            card["inn"].append({"team": side, "runs": runs, "wkts": wkts, "balls": lb, "extras": extras, "target": target.get("runs"),
+                                "bat": [cb[n] for n in order], "dnb": [n for n in xi if n not in cb],
+                                "bowl": list(cw.values()), "fow": fow})
         self.matches.append(rec)
         short = any(i.get("tovers") and i["tovers"] < 20 for i in rec["inn"])
         if rec["inn"] and not method and not short and rec["result"] != "no result":
@@ -286,6 +333,8 @@ def export(bk, out):
         write(pdir / f"{p}.json", by_p[p])
     bk.matches.sort(key=lambda r: (r["date"], r["id"]), reverse=True)
     write(out / "matches.json", bk.matches[:60])
+    for m in bk.matches[:60]:
+        write(out / "m" / f'{m["id"]}.json', {**m, **bk.cards[m["id"]]})
     venues = []
     for (c, v), ms in bk.venues.items():
         firsts = [m["inn"][0]["runs"] for m in ms]

@@ -58,7 +58,7 @@ async function method(){
   <h2>Definitions</h2>${table([{t:"Measure",l:1,v:r=>r[0]},{t:"Rule",l:1,v:r=>r[1]}],[["Balls faced","All deliveries except wides. No-balls count."],["Average","Runs divided by dismissals. Retired hurt and retired not out are not dismissals."],["Legal balls","Exclude wides and no-balls."],["Economy","Six times bat runs, wides and no-balls, divided by legal balls. Byes, leg-byes and penalties are not charged."],["Bowler wickets","Bowled, caught, caught and bowled, lbw, stumped and hit wicket. Run-outs don't count."],["Phases","Fixed overs 1-6, 7-15 and 16-20. Shortened games aren't re-binned."],["Super overs","Excluded from all player figures."],["Auction links","A sale links to a player only when one Cricsheet record fits the name, or one candidate played for the buying team. Unsure names stay unlinked."]])}
   <h2>Data in this build</h2>${table([{t:"Source",l:1,v:s=>s.url},{t:"Matches",v:s=>s.matches},{t:"SHA-256",l:1,v:s=>s.sha256.slice(0,16)+"…"}],m.sources)}
   <p class="mut">Built ${fdate(m.built)}. Men: ${m.summary.men.matches} matches to ${fdate(m.summary.men.latest)}. Women: ${m.summary.women.matches} matches to ${fdate(m.summary.women.latest)}. India T20I files include India's matches only.</p>
-  <h2>What this data can't show</h2><p>Public ball-by-ball records have no line, length, shot location, field placement, ball tracking, fitness or injury information. Nothing on this site guesses those. New matches appear when Cricsheet publishes them, usually a few days after play, so this isn't live scoring.</p>`);
+  <h2>What this data can't show</h2><p>Public ball-by-ball records have no line, length, shot location, field placement, ball tracking, fitness or injury information. Nothing on this site guesses those. Analysis uses Cricsheet, which publishes matches a few days after play. Live scores come from a separate feed and aren't included in player statistics.</p>`);
 }
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const SL=i=>css("--s"+i),PH=()=>[SL(1),SL(2),SL(3)],PHN=["Powerplay 1-6","Middle 7-15","Death 16-20"];
@@ -82,14 +82,14 @@ const lead=(s,k)=>s?.[k]??"";
 async function home(){
   const [ms,news,meta,au,pp,rw]=await Promise.all([D("matches.json"),get("data/news.json").catch(()=>null),get("data/meta.json"),get("data/auction.json"),D("players.json"),D("rows.json")]);
   const H=S.h=S.h||{};if(!compsOf().includes(H.c))H.c=compsOf()[0],H.y="";const lg=H.c,years=[...new Set(rw.rows.filter(r=>r[1]===lg).map(r=>r[2]))].sort((a,b)=>a-b),yr=+H.y||years.at(-1);
-  const g=rw.rows.filter(r=>r[1]===lg&&r[2]===yr&&r[3]===0),m=ms[0],sm=meta.summary[S.g],all=league(rw.rows,lg,0);
+  const g=rw.rows.filter(r=>r[1]===lg&&r[2]===yr&&r[3]===0),sm=meta.summary[S.g],all=league(rw.rows,lg,0);
   const topB=g.filter(r=>r[6]>0).sort((a,b)=>b[5]-a[5]).slice(0,10),topW=g.filter(r=>r[12]>0).sort((a,b)=>b[14]-a[14]||a[13]-b[13]).slice(0,10);
   const P=[1,2,3].map(p=>league(rw.rows,lg,p)),rr=(s)=>s&&s.balls?+(6*s.runs/s.balls).toFixed(2):null,lastY=years.at(-1),firstY=years[0],cur=all[yr];
   const sc=g.filter(r=>r[6]>=(lg==="IND"?60:100)&&r[10]>=2);
   const side=i=>{const t=[...String(i.runs)].map(c=>`<span class="tile">${c}</span>`).join("");return `<div class="side"><b>${esc(i.team)}</b><div class="tiles">${t}<span class="tile sep">/</span><span class="tile">${i.wkts}</span><span class="ov">${overs(i.balls)} ov</span></div></div>`};
   const ev=au.events.filter(e=>e.date>=new Date().toISOString().slice(0,10)&&e.league===(S.g==="men"?"IPL":"WPL"));
   const dp=P[2][lastY],pp0=P[0][lastY];
-  set(`<h1>${S.g==="men"?"Men's":"Women's"} dashboard</h1>
+  set(`${railShell()}<h1>${S.g==="men"?"Men's":"Women's"} dashboard</h1>
   <div class="filters"><label>Competition<select id="hc">${compsOf().map(c=>opt(c,COMP[c],lg))}</select></label><label>Season<select id="hy">${years.slice().reverse().map(y=>opt(y,y,yr))}</select></label></div>
   <div class="kpis"><div class="kpi" style="--c:${SL(1)}"><b>${sm.matches.toLocaleString("en-IN")}</b><span>Matches in data</span></div><div class="kpi" style="--c:${SL(2)}"><b>${sm.deliveries.toLocaleString("en-IN")}</b><span>Balls recorded</span></div><div class="kpi" style="--c:${SL(3)}"><b>${num(cur.runs,cur.balls,6,2)}</b><span>Bat runs per over, ${yr}</span></div><div class="kpi" style="--c:${SL(4)}"><b>${num(cur.f6,cur.balls,100,1)}%</b><span>Balls hit for six, ${yr}</span></div><div class="kpi" style="--c:${SL(7)}"><b>${fdate(sm.latest)}</b><span>Latest match</span></div></div>
   ${ev.length?`<p class="call"><b>Next:</b> ${ev.map(e=>`${esc(e.league)} ${esc(e.event)} on ${fdate(e.date)}${e.venue?" in "+esc(e.venue):""}`).join("; ")}. <a href="#/auction">See auction data</a></p>`:""}
@@ -99,13 +99,13 @@ async function home(){
   ${panel("c3",`Most wickets, ${yr}`,topW[0]?`${pp[topW[0][0]].n} leads with ${topW[0][14]}, economy ${num(topW[0][13],topW[0][12],6,2)}.`:"",{size:"tall"})}
   ${panel("c4",`Speed against reliability, ${yr}`,`Each dot is a batter with ${lg==="IND"?60:100}+ balls. Top right scores fast and stays in.`)}
   ${panel("c5","Fours and sixes per season","Share of balls faced that reach the rope.")}
-  ${m?`<section class="board wide" aria-label="Latest match"><div class="head"><span>${esc(m.event||COMP[m.comp])}</span><span>${fdate(m.date)}, ${esc(m.venue)}</span></div>${m.inn.map(side).join("")}<p class="res">${esc(resultText(m))}</p></section>`:""}
-  <section class="panel"><h2>Recent matches</h2><ul class="list">${ms.slice(1,6).map(x=>`<li><b>${esc(x.teams.join(" v "))}</b><br><small>${fdate(x.date)}, ${esc(COMP[x.comp])}: ${esc(resultText(x))}</small></li>`).join("")}</ul></section>
+  <section class="panel"><h2>Recent matches</h2><ul class="list">${ms.slice(0,6).map(x=>`<li><a href="#/match/${esc(x.id)}"><b>${esc(x.teams.join(" v "))}</b></a><br><small>${fdate(x.date)}, ${esc(COMP[x.comp])}: ${esc(resultText(x))}</small></li>`).join("")}</ul></section>
   <section class="panel"><h2>Latest headlines</h2>${news&&news[S.g]?.length?newsList(news[S.g].slice(0,5)):'<p class="mut">Headlines appear after the next data refresh.</p>'}</section></div>`);
   line("c1",years,[0,1,2].map(i=>({l:PHN[i],d:years.map(y=>rr(P[i][y])),c:PH()[i]})),"Bat runs per over");
   hbar("c2",topB.map(r=>pp[r[0]].n),topB.map(r=>r[5]),SL(1),"Runs");hbar("c3",topW.map(r=>pp[r[0]].n),topW.map(r=>r[14]),SL(8),"Wickets");
   scatter("c4",[{l:"Batters",c:SL(3),d:sc.map(r=>({x:+(r[5]/r[10]).toFixed(1),y:+(100*r[5]/r[6]).toFixed(1),t:`${pp[r[0]].n}: avg ${(r[5]/r[10]).toFixed(1)}, SR ${(100*r[5]/r[6]).toFixed(1)}`}))}],"Batting average","Strike rate");
   line("c5",years,[{l:"Fours %",d:years.map(y=>+num(all[y].f4,all[y].balls,100,2)),c:SL(1)},{l:"Sixes %",d:years.map(y=>+num(all[y].f6,all[y].balls,100,2)),c:SL(2)}],"% of balls faced");
+  rail(ms);
   $("#hc").onchange=e=>{H.c=e.target.value;H.y="";home()};$("#hy").onchange=e=>{H.y=e.target.value;home()};
 }
 async function player(id){
@@ -236,11 +236,40 @@ async function news(){
   if(items.length){donut("n1",Object.keys(c),Object.values(c),[SL(1),SL(2),SL(3)]);hbar("n2",ts.map(t=>t[0]),ts.map(t=>t[1]),SL(7),"Headlines")}
   const s=$("#nt");if(s)s.onchange=()=>{S.nt=s.value;news()};
 }
+/* match rail */
+let railTimer=null,railPoll=null;
+const stopRail=()=>{clearInterval(railTimer);clearInterval(railPoll);railTimer=railPoll=null};
+const railShell=()=>`<section aria-label="Matches"><div id="rail" class="rail" tabindex="0"></div></section>`;
+const wantLive=m=>{const w=/\bwomen\b|\bwpl\b/i.test(m.name+" "+m.teams.join(" "));return S.g==="women"?w:!w};
+const short=t=>t.replace(/\s*\[.*?\]/g,"");
+function liveCard(m){const on=m.started&&!m.ended;return `<a class="mc ${on?"on":""}" href="#/live/${esc(m.id)}"><span class="st">${on?"LIVE":m.ended?"Result":"Upcoming"}<small>${esc(m.type)}</small></span><div class="mt">${m.score.length?m.score.slice(-2).map(s=>`<p><b>${esc(short(s.inn).replace(/ Inning.*/i,""))}</b><span>${esc(s.r)}/${esc(s.w)} (${esc(s.o)})</span></p>`).join(""):m.teams.map(t=>`<p><b>${esc(t)}</b></p>`).join("")}</div><small class="ms">${esc(m.status)}</small></a>`}
+function doneCard(m){return `<a class="mc" href="#/match/${esc(m.id)}"><span class="st">Result<small>${esc(COMP[m.comp])}</small></span><div class="mt">${m.inn.map(i=>`<p><b>${esc(i.team)}</b><span>${i.runs}/${i.wkts} (${overs(i.balls)})</span></p>`).join("")}</div><small class="ms">${fdate(m.date)}: ${esc(resultText(m))}</small></a>`}
+async function rail(ms){stopRail();const el=$("#rail");if(!el)return;const g=S.g;
+ const paint=async()=>{let lv=[];try{const r=await (await fetch("/api/live")).json();if(r.ok)lv=r.matches.filter(wantLive).sort((a,b)=>(b.started&&!b.ended)-(a.started&&!a.ended))}catch{}
+  const e=$("#rail");if(!e||S.g!==g)return;const x=e.scrollLeft;e.innerHTML=lv.slice(0,14).map(liveCard).join("")+ms.slice(0,14).map(doneCard).join("");e.scrollLeft=x};
+ el.innerHTML=ms.slice(0,14).map(doneCard).join("");await paint();railPoll=setInterval(paint,60000);
+ if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+ let hold=false,t;const pause=()=>{hold=true;clearTimeout(t);t=setTimeout(()=>hold=false,8000)};["pointerdown","touchstart","wheel","focusin","mouseenter"].forEach(n=>el.addEventListener(n,pause,{passive:true}));
+ railTimer=setInterval(()=>{const e=$("#rail");if(!e||hold||document.hidden)return;const w=e.firstElementChild?.offsetWidth+12||292;if(e.scrollLeft+e.clientWidth>=e.scrollWidth-4)e.scrollTo({left:0,behavior:"smooth"});else e.scrollBy({left:w,behavior:"smooth"})},4000)}
+const bcols=[{t:"Batter",l:1,h:r=>`${r.id?`<a href="#/player/${esc(r.id)}">${esc(r.n)}</a>`:esc(r.n)}<br><small class="mut">${esc(r.how)}</small>`,v:r=>r.n},{t:"R",v:r=>r.r},{t:"B",v:r=>r.b},{t:"4s",v:r=>r.f},{t:"6s",v:r=>r.s},{t:"SR",v:r=>num(r.r,r.b,100)}];
+const wcols=[{t:"Bowler",l:1,h:r=>r.id?`<a href="#/player/${esc(r.id)}">${esc(r.n)}</a>`:esc(r.n),v:r=>r.n},{t:"O",v:r=>overs(r.l)},{t:"R",v:r=>r.r},{t:"W",v:r=>r.w},{t:"Dots",v:r=>r.dots},{t:"Econ",v:r=>num(r.r,r.l,6,2)},{t:"WD",v:r=>r.wd},{t:"NB",v:r=>r.nb}];
+async function match(id){const m=await D(`m/${id}.json`);
+ set(`<a class="btn" href="#/">Back to dashboard</a><section class="board" style="margin-top:12px" aria-label="Match summary"><div class="head"><span>${esc(m.event||COMP[m.comp])}${m.stage?", "+esc(m.stage):""}</span><span>${fdate(m.date)}, ${esc(m.venue)}</span></div>${m.inn.map(i=>`<div class="side"><b>${esc(i.team)}</b><div class="tiles">${[...String(i.runs)].map(c=>`<span class="tile">${c}</span>`).join("")}<span class="tile sep">/</span><span class="tile">${i.wkts}</span><span class="ov">${overs(i.balls)} ov</span></div></div>`).join("")}<p class="res">${esc(resultText(m))}</p></section>
+ <p class="lede">${m.toss?esc(m.toss)+". ":""}${m.pom.length?"Player of the match: "+esc(m.pom.join(", "))+".":""}</p>
+ <div class="dash"><figure class="panel wide"><h2>How the runs were made</h2><div class="cv short"><canvas id="mw" role="img" aria-label="Runs from the bat and extras by innings"></canvas></div></figure></div>
+ ${m.inn.map((i,k)=>`<h2>${esc(i.team)}: ${i.runs}/${i.wkts} (${overs(i.balls)} ov)</h2>${table(bcols,i.bat)}<p class="mut">Extras ${i.extras}.${i.dnb.length?" Did not bat: "+esc(i.dnb.join(", "))+".":""}</p><div style="height:10px"></div>${table(wcols,i.bowl)}${i.fow.length?`<p class="mut"><b>Fall of wickets:</b> ${i.fow.map(f=>`${f.s}-${f.w} (${esc(f.p)}, ${f.o})`).join(", ")}</p>`:""}`).join("")}`);
+ draw("mw",{type:"bar",data:{labels:m.inn.map(i=>i.team),datasets:[{label:"Runs from the bat",data:m.inn.map(i=>i.runs-i.extras),backgroundColor:SL(1)},{label:"Extras",data:m.inn.map(i=>i.extras),backgroundColor:SL(4)}]},options:{indexAxis:"y",plugins:{legend:{display:true,position:"bottom"}},scales:{x:{stacked:true,beginAtZero:true,title:{display:true,text:"Runs"}},y:{stacked:true,grid:{display:false}}}}});}
+let livePoll=null;
+async function live(id){const load=async()=>{const r=await (await fetch("/api/live/"+encodeURIComponent(id))).json();if(location.hash!=="#/live/"+id)return clearInterval(livePoll);if(!r.ok){set(`<h1>Live score</h1><p class="lede">${esc(r.error||"The live feed isn't switched on yet.")} <a href="#/">Back to dashboard</a></p>`);return}
+ const m=r.match;set(`<a class="btn" href="#/">Back to dashboard</a><h1 style="margin-top:12px">${esc(m.name)}</h1><p class="lede">${esc(m.status)}. ${esc(m.venue)}.<br><small>Updated ${new Date(r.at).toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"})}. Scores can be up to ${Math.round(r.ttl/60)} minutes behind.</small></p>
+ <div class="kpis">${m.score.map((s,i)=>`<div class="kpi" style="--c:${SL(i%2?2:1)}"><b>${esc(s.r)}/${esc(s.w)}</b><span>${esc(s.inn)}, ${esc(s.o)} ov</span></div>`).join("")}</div>
+ ${r.innings.map(i=>`<h2>${esc(i.inn)}</h2>${table([{t:"Batter",l:1,h:b=>`${esc(b.n)}<br><small class="mut">${esc(b.how)}</small>`,v:b=>b.n},{t:"R",v:b=>b.r},{t:"B",v:b=>b.b},{t:"4s",v:b=>b.f},{t:"6s",v:b=>b.s},{t:"SR",v:b=>b.sr}],i.bat)}<div style="height:10px"></div>${table([{t:"Bowler",l:1,v:b=>b.n},{t:"O",v:b=>b.o},{t:"M",v:b=>b.m},{t:"R",v:b=>b.r},{t:"W",v:b=>b.w},{t:"Econ",v:b=>b.eco}],i.bowl)}`).join("")}`)};
+ clearInterval(livePoll);await load();livePoll=setInterval(()=>load().catch(()=>{}),60000)}
 async function route(){
   const h=location.hash.replace(/^#\/?/,"").split("/");
-  closeMenu();$$("nav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#/"+h[0]));
+  stopRail();clearInterval(livePoll);closeMenu();$$("nav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#/"+h[0]));
   $$(".seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.g===S.g));
-  try{await({"":home,players,player:()=>player(h[1]),compare:()=>compare(h[1]),matchups,venues,auction,news,method}[h[0]]||home)()}
+  try{await({"":home,players,player:()=>player(h[1]),compare:()=>compare(h[1]),match:()=>match(h[1]),live:()=>live(h[1]),matchups,venues,auction,news,method}[h[0]]||home)()}
   catch(e){console.error(e);set(`<h1>This page couldn't load</h1><p class="lede">${esc(e.message)}. Reload the page, or check the <a href="#/method">data status</a>.</p>`)}
   window.scrollTo(0,0);
 }

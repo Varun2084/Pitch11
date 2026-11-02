@@ -43,6 +43,15 @@ class T(unittest.TestCase):
         r = [{"player": "Cameron Green", "league": "IPL", "season": 2024, "team": "RCB"}]
         build.link_auction(r, {"1": "C Green", "2": "CJ Green"}, {("1", "IPL", 2024, "Royal Challengers Bengaluru")})
         s.assertEqual(r[0]["pid"], "1")
+    def test_scorecard(s):
+        m = json.loads((s.t / "o/men/m/1.json").read_text()); i = m["inn"][0]
+        a = next(b for b in i["bat"] if b["n"] == "A One"); t = next(b for b in i["bat"] if b["n"] == "B Two")
+        s.assertEqual((a["r"], a["b"], a["how"]), (12, 4, "run out"))
+        s.assertTrue(t["how"].startswith("c "))
+        s.assertEqual(sum(b["r"] for b in i["bat"]) + i["extras"], i["runs"])
+        s.assertEqual(sum(w["r"] for w in i["bowl"]) + 2, i["runs"])  # 2 byes are not charged
+        s.assertEqual(len(m["inn"]), 2)  # super over excluded
+        s.assertEqual([b["n"] for b in i["bowl"]][0], "D Four")
     def test_news(s):
         from datetime import datetime, timezone
         x = b'<rss><channel><item><title>Big story - Site</title><source>Site</source><link>http://x</link><pubDate>Mon, 02 Nov 2026 01:00:00 GMT</pubDate></item></channel></rss>'
