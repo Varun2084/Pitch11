@@ -237,6 +237,8 @@ async function news(){
   const s=$("#nt");if(s)s.onchange=()=>{S.nt=s.value;news()};
 }
 /* match rail */
+const LIVE_URL="https://raw.githubusercontent.com/Varun2084/Pitch11/live-data/live.json";
+const liveData=async()=>{try{const r=await fetch(LIVE_URL);return r.ok?await r.json():null}catch{return null}};
 let railTimer=null,railPoll=null;
 const stopRail=()=>{clearInterval(railTimer);clearInterval(railPoll);railTimer=railPoll=null};
 const railShell=()=>`<section aria-label="Matches"><div id="rail" class="rail" tabindex="0"></div></section>`;
@@ -245,7 +247,7 @@ const short=t=>t.replace(/\s*\[.*?\]/g,"");
 function liveCard(m){const on=m.started&&!m.ended;return `<a class="mc ${on?"on":""}" href="#/live/${esc(m.id)}"><span class="st">${on?"LIVE":m.ended?"Result":"Upcoming"}<small>${esc(m.type)}</small></span><div class="mt">${m.score.length?m.score.slice(-2).map(s=>`<p><b>${esc(short(s.inn).replace(/ Inning.*/i,""))}</b><span>${esc(s.r)}/${esc(s.w)} (${esc(s.o)})</span></p>`).join(""):m.teams.map(t=>`<p><b>${esc(t)}</b></p>`).join("")}</div><small class="ms">${esc(m.status)}</small></a>`}
 function doneCard(m){return `<a class="mc" href="#/match/${esc(m.id)}"><span class="st">Result<small>${esc(COMP[m.comp])}</small></span><div class="mt">${m.inn.map(i=>`<p><b>${esc(i.team)}</b><span>${i.runs}/${i.wkts} (${overs(i.balls)})</span></p>`).join("")}</div><small class="ms">${fdate(m.date)}: ${esc(resultText(m))}</small></a>`}
 async function rail(ms){stopRail();const el=$("#rail");if(!el)return;const g=S.g;
- const paint=async()=>{let lv=[];try{const r=await (await fetch("/api/live")).json();if(r.ok)lv=r.matches.filter(wantLive).sort((a,b)=>(b.started&&!b.ended)-(a.started&&!a.ended))}catch{}
+ const paint=async()=>{let lv=[];try{const r=await liveData();if(r)lv=r.matches.filter(wantLive).sort((a,b)=>(b.started&&!b.ended)-(a.started&&!a.ended))}catch{}
   const e=$("#rail");if(!e||S.g!==g)return;const x=e.scrollLeft;e.innerHTML=lv.slice(0,14).map(liveCard).join("")+ms.slice(0,14).map(doneCard).join("");e.scrollLeft=x};
  el.innerHTML=ms.slice(0,14).map(doneCard).join("");await paint();railPoll=setInterval(paint,60000);
  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
@@ -260,10 +262,12 @@ async function match(id){const m=await D(`m/${id}.json`);
  ${m.inn.map((i,k)=>`<h2>${esc(i.team)}: ${i.runs}/${i.wkts} (${overs(i.balls)} ov)</h2>${table(bcols,i.bat)}<p class="mut">Extras ${i.extras}.${i.dnb.length?" Did not bat: "+esc(i.dnb.join(", "))+".":""}</p><div style="height:10px"></div>${table(wcols,i.bowl)}${i.fow.length?`<p class="mut"><b>Fall of wickets:</b> ${i.fow.map(f=>`${f.s}-${f.w} (${esc(f.p)}, ${f.o})`).join(", ")}</p>`:""}`).join("")}`);
  draw("mw",{type:"bar",data:{labels:m.inn.map(i=>i.team),datasets:[{label:"Runs from the bat",data:m.inn.map(i=>i.runs-i.extras),backgroundColor:SL(1)},{label:"Extras",data:m.inn.map(i=>i.extras),backgroundColor:SL(4)}]},options:{indexAxis:"y",plugins:{legend:{display:true,position:"bottom"}},scales:{x:{stacked:true,beginAtZero:true,title:{display:true,text:"Runs"}},y:{stacked:true,grid:{display:false}}}}});}
 let livePoll=null;
-async function live(id){const load=async()=>{const r=await (await fetch("/api/live/"+encodeURIComponent(id))).json();if(location.hash!=="#/live/"+id)return clearInterval(livePoll);if(!r.ok){set(`<h1>Live score</h1><p class="lede">${esc(r.error||"The live feed isn't switched on yet.")} <a href="#/">Back to dashboard</a></p>`);return}
- const m=r.match;set(`<a class="btn" href="#/">Back to dashboard</a><h1 style="margin-top:12px">${esc(m.name)}</h1><p class="lede">${esc(m.status)}. ${esc(m.venue)}.<br><small>Updated ${new Date(r.at).toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"})}. Scores can be up to ${Math.round(r.ttl/60)} minutes behind.</small></p>
+async function live(id){const load=async()=>{const r=await liveData();if(location.hash!=="#/live/"+id)return clearInterval(livePoll);const c=r?.cards?.[id],m=c?.match||r?.matches.find(x=>x.id===id);
+ if(!m){set(`<h1>Live score</h1><p class="lede">This match isn't in the live feed right now. <a href="#/">Back to dashboard</a></p>`);return}
+ set(`<a class="btn" href="#/">Back to dashboard</a><h1 style="margin-top:12px">${esc(m.name)}</h1><p class="lede">${esc(m.status)}. ${esc(m.venue)}.<br><small>Updated ${new Date(r.at).toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"})}. Scores refresh about every 30 minutes.</small></p>
  <div class="kpis">${m.score.map((s,i)=>`<div class="kpi" style="--c:${SL(i%2?2:1)}"><b>${esc(s.r)}/${esc(s.w)}</b><span>${esc(s.inn)}, ${esc(s.o)} ov</span></div>`).join("")}</div>
- ${r.innings.map(i=>`<h2>${esc(i.inn)}</h2>${table([{t:"Batter",l:1,h:b=>`${esc(b.n)}<br><small class="mut">${esc(b.how)}</small>`,v:b=>b.n},{t:"R",v:b=>b.r},{t:"B",v:b=>b.b},{t:"4s",v:b=>b.f},{t:"6s",v:b=>b.s},{t:"SR",v:b=>b.sr}],i.bat)}<div style="height:10px"></div>${table([{t:"Bowler",l:1,v:b=>b.n},{t:"O",v:b=>b.o},{t:"M",v:b=>b.m},{t:"R",v:b=>b.r},{t:"W",v:b=>b.w},{t:"Econ",v:b=>b.eco}],i.bowl)}`).join("")}`)};
+ ${(c?.innings||[]).map(i=>`<h2>${esc(i.inn)}</h2>${table([{t:"Batter",l:1,h:b=>`${esc(b.n)}<br><small class="mut">${esc(b.how)}</small>`,v:b=>b.n},{t:"R",v:b=>b.r},{t:"B",v:b=>b.b},{t:"4s",v:b=>b.f},{t:"6s",v:b=>b.s},{t:"SR",v:b=>b.sr}],i.bat)}<div style="height:10px"></div>${table([{t:"Bowler",l:1,v:b=>b.n},{t:"O",v:b=>b.o},{t:"M",v:b=>b.m},{t:"R",v:b=>b.r},{t:"W",v:b=>b.w},{t:"Econ",v:b=>b.eco}],i.bowl)}`).join("")}
+ ${c?"":`<p class="mut">The detailed scorecard isn't available for this match yet.</p>`}`)};
  clearInterval(livePoll);await load();livePoll=setInterval(()=>load().catch(()=>{}),60000)}
 async function route(){
   const h=location.hash.replace(/^#\/?/,"").split("/");

@@ -1,0 +1,32 @@
+name: Live scores
+on:
+  schedule:
+    - cron: "7,37 * * * *"   # about every 30 minutes
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: live
+  cancel-in-progress: true
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch live matches
+        env:
+          LIVE_API_KEY: ${{ secrets.LIVE_API_KEY }}
+        run: python pipeline/live.py --out live-out
+      - name: Publish to the live-data branch
+        run: |
+          [ -f live-out/live.json ] || exit 0
+          cd live-out
+          git init -q -b live-data
+          git config user.name "pitchxi-bot"
+          git config user.email "pitchxi-bot@users.noreply.github.com"
+          git add live.json
+          git commit -q -m "Live scores"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" live-data

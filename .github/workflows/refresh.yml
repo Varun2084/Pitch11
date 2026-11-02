@@ -1,12 +1,19 @@
-name: Daily refresh
+name: Refresh data and deploy
 on:
+  push:
+    branches: [main]
   schedule:
-    - cron: "17 1 * * *"   # 06:47 IST
+    - cron: "17 1,7,13,19 * * *"   # four times a day
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
 jobs:
-  refresh:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,16 +22,21 @@ jobs:
           python-version: "3.12"
       - name: Test the metric rules
         run: python -W ignore tests/test_build.py
-      - name: Check the data builds and passes integrity checks
-        run: |
-          python pipeline/build.py --out web/data
-          python pipeline/news.py --out web/data
-          python pipeline/report.py web/data
-      - name: Ask Netlify to rebuild
-        run: |
-          date -u +%FT%TZ > data/last_refresh.txt
-          git config user.name "pitchxi-bot"
-          git config user.email "pitchxi-bot@users.noreply.github.com"
-          git add data/last_refresh.txt
-          git commit -m "Daily data refresh"
-          git push
+      - name: Build from Cricsheet and run integrity checks
+        run: python pipeline/build.py --out web/data
+      - name: Fetch headlines
+        run: python pipeline/news.py --out web/data
+      - name: Print build summary
+        run: python pipeline/report.py web/data
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - id: pages
+        uses: actions/deploy-pages@v4

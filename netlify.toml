@@ -1,3 +1,0 @@
-[build]
-  command = "python3 pipeline/build.py --out web/data && python3 pipeline/news.py --out web/data"
-  publish = "web"
