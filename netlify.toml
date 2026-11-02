@@ -1,0 +1,5 @@
+# The app is hosted on GitHub Pages. Netlify only forwards the old link, and rebuilds
+# only when this forwarding changes, so routine commits use no Netlify credits.
+[build]
+  publish = "netlify-redirect"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- netlify-redirect netlify.toml"
