@@ -26,6 +26,8 @@ jobs:
         run: python pipeline/build.py --out web/data
       - name: Fetch headlines
         run: python pipeline/news.py --out web/data
+      - name: Print build summary
+        run: python pipeline/report.py web/data
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
