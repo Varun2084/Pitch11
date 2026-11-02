@@ -284,4 +284,4 @@ $("#menu").onclick=()=>{const o=$("#side").classList.toggle("open");$("#scrim").
 $("#scrim").onclick=closeMenu;addEventListener("keydown",e=>{if(e.key==="Escape")closeMenu()});
 $$("nav a").forEach(a=>a.addEventListener("click",closeMenu));
 (async()=>{route();try{const m=await get("data/meta.json");if(m.demo)$("#banner").textContent="Test data only. These matches are made up for checking the app.";
-$("#foot").innerHTML=`Match data from <a href="https://cricsheet.org" target="_blank" rel="noopener">Cricsheet</a>. Updated ${fdate(m.built)}. Independent project, not affiliated with the IPL, WPL or BCCI.`}catch{}})();
+$("#foot").innerHTML=`Latest match in this data: ${fdate(m.summary[S.g].latest)}. Data checked ${fdate(m.built)}. Match data from <a href="https://cricsheet.org" target="_blank" rel="noopener">Cricsheet</a>. Independent project, not affiliated with the IPL, WPL or BCCI.`}catch{}})();
