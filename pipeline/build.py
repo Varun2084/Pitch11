@@ -86,6 +86,7 @@ class Book:
         self.matches, self.venues = [], defaultdict(list)
         self.deliveries = 0
         self.india = set()
+        self.team_year = set()  # (pid, comp, year, team)
 
     def parse(self, mid, m, comp):
         info = m["info"]
@@ -106,6 +107,7 @@ class Book:
                 if not pid:
                     continue
                 self.apps[(pid, comp, year)].add(mid)
+                self.team_year.add((pid, comp, year, team(side)))
                 self.names[pid] = n
                 if date >= self.last_date.get(pid, ""):
                     self.last_date[pid] = date
@@ -187,14 +189,26 @@ def norm(s):
     return re.sub(r"[^a-z ]", "", s.lower().replace("-", " ")).strip()
 
 
-def link_auction(rows, names):
-    """Cricsheet stores 'V Kohli'; auctions print 'Virat Kohli'. Link only when exactly one player fits.
-    Overrides in data/auction/player_links.csv win. Anything unsure stays unlinked rather than guessed."""
+TEAM_CODE = {
+    "CSK": "Chennai Super Kings", "DC": "Delhi Capitals", "GT": "Gujarat Titans", "KKR": "Kolkata Knight Riders",
+    "LSG": "Lucknow Super Giants", "MI": "Mumbai Indians", "PBKS": "Punjab Kings", "RR": "Rajasthan Royals",
+    "RCB": "Royal Challengers Bengaluru", "SRH": "Sunrisers Hyderabad", "GG": "Gujarat Giants", "UPW": "UP Warriorz",
+}
+# Auction name differs from the scorecard surname.
+NAME_ALIAS = {"Wanindu Hasaranga": "de silva", "Danni Wyatt-Hodge": "wyatt", "Kamindu Mendis": "mendis", "Asha Sobhana": "shobana"}
+
+
+def link_auction(rows, names, team_year=frozenset()):
+    """Cricsheet stores 'V Kohli'; auctions print 'Virat Kohli'. Link only on one clear candidate.
+    Order: checked override; exact name; surname plus first initial; then the player who actually
+    played for the buying team that season. Anything still unsure stays unlinked."""
     index = defaultdict(list)
     for pid, n in names.items():
         parts = norm(n).split()
         if parts:
             index[parts[-1]].append((pid, parts[:-1], norm(n)))
+            if len(parts) > 2:
+                index[" ".join(parts[-2:])].append((pid, parts[:-2], norm(n)))
     overrides = {}
     path = ROOT / "data/auction/player_links.csv"
     if path.exists():
@@ -205,9 +219,15 @@ def link_auction(rows, names):
             r["pid"], r["link"] = overrides[p], "checked"
             continue
         w = norm(p).split()
-        hits = [c for c in index.get(w[-1], []) if c[2] == norm(p)]
+        pool = index.get(NAME_ALIAS.get(p, w[-1]), [])
+        played = lambda c: any((c[0], r.get("league"), y, TEAM_CODE.get(r.get("team"))) in team_year
+                               for y in (int(r.get("season") or 0), int(r.get("season") or 0) - 1))
+        hits = [c for c in pool if c[2] == norm(p)]
         if not hits:
-            hits = [c for c in index.get(w[-1], []) if c[1] and all(i[0] == w[0][0] for i in c[1][0][:1])]
+            hits = [c for c in pool if c[1] and c[1][0][0] == w[0][0]]
+        if len(hits) != 1:
+            narrowed = [c for c in (hits or pool) if played(c)]
+            hits = narrowed if len(narrowed) == 1 else []
         r["pid"], r["link"] = (hits[0][0], "name") if len(hits) == 1 else (None, "")
 
 
@@ -220,7 +240,7 @@ def auction(men, women):
         out.append(r)
     for lg, bk in (("IPL", men), ("WPL", women)):
         sub = [r for r in out if r["league"] == lg]
-        link_auction(sub, bk.names)
+        link_auction(sub, bk.names, bk.team_year)
         for r in sub:
             b = bk.bat.get((r["pid"], lg, r["season"], 0)); w = bk.bowl.get((r["pid"], lg, r["season"], 0))
             m = len(bk.apps.get((r["pid"], lg, r["season"]), ()))

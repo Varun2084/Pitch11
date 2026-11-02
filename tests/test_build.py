@@ -39,6 +39,10 @@ class T(unittest.TestCase):
         r = [{"player": "Rahul Sharma"}, {"player": "Rohit Sharma"}, {"player": "Virat Kohli"}]
         build.link_auction(r, {"1": "R Sharma", "2": "RG Sharma", "3": "V Kohli"})
         s.assertIsNone(r[0]["pid"]); s.assertIsNone(r[1]["pid"]); s.assertEqual(r[2]["pid"], "3")
+    def test_link_uses_team(s):
+        r = [{"player": "Cameron Green", "league": "IPL", "season": 2024, "team": "RCB"}]
+        build.link_auction(r, {"1": "C Green", "2": "CJ Green"}, {("1", "IPL", 2024, "Royal Challengers Bengaluru")})
+        s.assertEqual(r[0]["pid"], "1")
     def test_news(s):
         from datetime import datetime, timezone
         x = b'<rss><channel><item><title>Big story - Site</title><source>Site</source><link>http://x</link><pubDate>Mon, 02 Nov 2026 01:00:00 GMT</pubDate></item></channel></rss>'
