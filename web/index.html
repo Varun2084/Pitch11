@@ -11,19 +11,32 @@
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="top">
+<div class="mbar">
+  <button id="menu" aria-label="Open menu" aria-expanded="false" aria-controls="side"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   <a class="brand" href="#/">PitchXI</a>
-  <div class="seg" role="group" aria-label="Choose men's or women's cricket">
-    <button data-g="men">Men</button><button data-g="women">Women</button>
-  </div>
+  <div class="seg" role="group" aria-label="Choose men's or women's cricket"><button data-g="men">Men</button><button data-g="women">Women</button></div>
+</div>
+<div id="scrim" hidden></div>
+<aside id="side">
+  <a class="brand" href="#/">PitchXI</a>
+  <div class="seg" role="group" aria-label="Choose men's or women's cricket"><button data-g="men">Men</button><button data-g="women">Women</button></div>
   <nav id="nav" aria-label="Main">
-    <a href="#/players">Players</a><a href="#/compare">Compare</a><a href="#/matchups">Matchups</a>
-    <a href="#/venues">Venues</a><a href="#/auction">Auction</a><a href="#/news">News</a><a href="#/method">Method</a>
+    <a href="#/"><i style="--c:#3987e5"></i>Dashboard</a>
+    <a href="#/players"><i style="--c:#d95926"></i>Players</a>
+    <a href="#/compare"><i style="--c:#199e70"></i>Compare</a>
+    <a href="#/matchups"><i style="--c:#c98500"></i>Matchups</a>
+    <a href="#/venues"><i style="--c:#d55181"></i>Venues</a>
+    <a href="#/auction"><i style="--c:#9085e9"></i>Auction</a>
+    <a href="#/news"><i style="--c:#e66767"></i>News</a>
+    <a href="#/method"><i style="--c:#7f9aa8"></i>Method</a>
   </nav>
-</header>
+</aside>
+<div class="wrap">
 <div id="banner"></div>
 <main id="main" tabindex="-1"></main>
 <footer id="foot"></footer>
+</div>
+<script src="vendor/chart-4.4.9.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

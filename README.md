@@ -2,7 +2,7 @@
 
 Ball-by-ball cricket analysis for the IPL, WPL and India's men's and women's T20Is, with auction records and news.
 
-- **Match data:** [Cricsheet](https://cricsheet.org), rebuilt four times a day by GitHub Actions.
+- **Match data:** [Cricsheet](https://cricsheet.org), refreshed daily: a GitHub Action checks the data, then Netlify rebuilds the site.
 - **Auctions:** `data/auction/sold.csv`, one row per sale with its source URL. Add new auctions here.
 - **News:** headlines from Google News RSS, linked to each publisher.
 - **Checks:** `tests/` covers the metric rules. `pipeline/build.py` stops the deploy if an integrity check fails, so the last good site stays live.
