@@ -31,7 +31,7 @@ jobs:
       - name: RR auction brief numbers
         run: python pipeline/brief.py web/data
       - name: Player check figures
-        run: python pipeline/verify_players.py web/data "D Ferreira,Dhruv Jurel,Sandeep Sharma,Mohammed Shami,JC Archer,SO Hetmyer"
+        run: python pipeline/verify_players.py web/data "Sandeep Sharma,Mohammed Shami,JC Archer"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web

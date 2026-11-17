@@ -20,10 +20,14 @@ K = "inn runs balls f4 f6 dots outs binn legal conc wk bdot bb".split()
 players = json.loads((D / "men/players.json").read_text(encoding="utf-8"))
 rows = json.loads((D / "men/rows.json").read_text(encoding="utf-8"))["rows"]
 norm = lambda s: re.sub(r"[^a-z ]", "", s.lower().replace("-", " ")).split()
-ALIAS = {"Vaibhav Suryavanshi": "Sooryavanshi", "Wanindu Hasaranga": "de Silva", "Kamindu Mendis": "Mendis"}
+ALIAS = {"Wanindu Hasaranga": "de Silva", "Kamindu Mendis": "Mendis"}
+CSNAME = {"Dasun Shanaka": "MD Shanaka"}  # checked by hand
 
 
 def find(name, team=None):
+    if name in CSNAME:
+        hit = [i for i, p in enumerate(players) if p["n"] == CSNAME[name]]
+        return hit[0] if len(hit) == 1 else None
     w = norm(name); last = norm(ALIAS.get(name, w[-1]))[-1]
     c = [i for i, p in enumerate(players) if norm(p["n"]) and norm(p["n"])[-1] == last and p["m"].get("IPL")]
     exact = [i for i in c if norm(players[i]["n"]) == w]
@@ -59,7 +63,7 @@ def card(name, team=None):
 
 league = {"bat_death": bat(agg(None, 3)), "bat_all": bat(agg(None, 0)), "bowl_pp": bowl(agg(None, 1)), "bowl_death": bowl(agg(None, 3))}
 pool = [card(r["player"], r["team"]) for r in csv.DictReader((ROOT / "data/auction/released_2027.csv").open(encoding="utf-8"))]
-squad = [card(r["player"]) | {"role": r["role"]} for r in csv.DictReader((ROOT / "data/auction/rr_squad_2027.csv").open(encoding="utf-8"))]
+squad = [card(r["player"]) | {"role": r["role"], "price_cr": float(r["price_cr"]), "overseas": r["overseas"] == "1", "how": r["how"]} for r in csv.DictReader((ROOT / "data/auction/rr_squad_2027.csv").open(encoding="utf-8"))]
 fin = sorted([c for c in pool if c["linked"] and c["bat_death"]["balls"] >= 30], key=lambda c: -c["bat_death"]["sr"])
 seam = sorted([c for c in pool if c["linked"] and c["bowl_death"]["legal"] + c["bowl_pp"]["legal"] >= 90], key=lambda c: (c["bowl_pp"]["econ"] or 99) + (c["bowl_death"]["econ"] or 99))
 rr_out = [card(r["player"], "RR") for r in csv.DictReader((ROOT / "data/auction/released_2027.csv").open(encoding="utf-8")) if r["team"] == "RR"]
