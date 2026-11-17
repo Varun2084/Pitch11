@@ -386,7 +386,10 @@ def fetch(name, source):
     for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=180) as r:
-                return r.read(), BASE + name
+                raw = r.read()
+            if raw[:2] == b"PK" and zipfile.is_zipfile(io.BytesIO(raw)):
+                return raw, BASE + name
+            print(f"retry {name}: response was not a zip ({len(raw)} bytes)", file=sys.stderr)
         except Exception as e:
             print(f"retry {name}: {e}", file=sys.stderr)
             time.sleep(10 * (attempt + 1))
