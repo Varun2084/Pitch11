@@ -20,7 +20,7 @@ def find(name, team=None):
     c = [i for i, p in enumerate(players) if norm(p["n"]) and norm(p["n"])[-1] == last and p["m"].get("IPL")]
     exact = [i for i in c if norm(players[i]["n"]) == w]
     if len(exact) == 1: return exact[0]
-    ini = [i for i in c if norm(players[i]["n"])[0][0] == w[0][0]] or c
+    ini = [i for i in c if norm(players[i]["n"])[0][0] == w[0][0]]
     if len(ini) > 1 and team: ini = [i for i in ini if players[i]["t"] == FULL.get(team)] or ini
     if len(ini) > 1: ini = [i for i in ini if players[i]["d"] >= "2025"] or ini
     return ini[0] if len(ini) == 1 else None
