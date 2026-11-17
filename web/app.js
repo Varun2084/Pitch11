@@ -269,11 +269,46 @@ async function live(id){const load=async()=>{const r=await liveData();if(locatio
  ${(c?.innings||[]).map(i=>`<h2>${esc(i.inn)}</h2>${table([{t:"Batter",l:1,h:b=>`${esc(b.n)}<br><small class="mut">${esc(b.how)}</small>`,v:b=>b.n},{t:"R",v:b=>b.r},{t:"B",v:b=>b.b},{t:"4s",v:b=>b.f},{t:"6s",v:b=>b.s},{t:"SR",v:b=>b.sr}],i.bat)}<div style="height:10px"></div>${table([{t:"Bowler",l:1,v:b=>b.n},{t:"O",v:b=>b.o},{t:"M",v:b=>b.m},{t:"R",v:b=>b.r},{t:"W",v:b=>b.w},{t:"Econ",v:b=>b.eco}],i.bowl)}`).join("")}
  ${c?"":`<p class="mut">The detailed scorecard isn't available for this match yet.</p>`}`)};
  clearInterval(livePoll);await load();livePoll=setInterval(()=>load().catch(()=>{}),60000)}
+/* RR auction brief */
+const ini=n=>n.split(/\s+/).filter(Boolean).map(w=>w[0]).slice(0,2).join("").toUpperCase();
+const RM=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+function countUp(root){$$("[data-to]",root).forEach(el=>{const to=+el.dataset.to,d=+(el.dataset.dec||0),pre=el.dataset.pre||"",suf=el.dataset.suf||"";if(RM()){el.textContent=pre+to.toFixed(d)+suf;return}const t0=performance.now();const step=t=>{const k=Math.min(1,(t-t0)/1100),e=1-Math.pow(1-k,3);el.textContent=pre+(to*e).toFixed(d)+suf;if(k<1)requestAnimationFrame(step)};requestAnimationFrame(step)})}
+function growOnView(root){const bars=$$(".gb i",root);if(RM()||!("IntersectionObserver" in window)){bars.forEach(b=>b.style.width=b.dataset.w);return}const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){$$(".gb i",e.target).forEach((b,k)=>setTimeout(()=>b.style.width=b.dataset.w,k*70));io.unobserve(e.target)}}),{threshold:.25});$$(".gbars",root).forEach(s=>io.observe(s))}
+function tilt(root){if(RM()||!matchMedia("(hover:hover)").matches)return;$$(".pc",root).forEach(c=>{c.addEventListener("pointermove",e=>{const r=c.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;c.style.transform=`perspective(700px) rotateX(${(-y*6).toFixed(2)}deg) rotateY(${(x*6).toFixed(2)}deg)`});c.addEventListener("pointerleave",()=>c.style.transform="")})}
+const wavg=(list,kind)=>{let n=0,v=0;for(const c of list){const s=c[kind];if(!s)continue;if(kind.startsWith("bat")){n+=s.balls;v+=s.sr*s.balls/100}else{n+=s.legal;v+=s.econ*s.legal/6}}return n?(kind.startsWith("bat")?100*v/n:6*v/n):null};
+function gbars(rows,ref,refLabel,unit,lowerBetter){const mx=Math.max(ref,...rows.map(r=>r.v))*1.08,refx=100*ref/mx;
+ return `<div class="gbars" role="table" aria-label="${esc(unit)} compared with the league">${rows.map(r=>{const good=lowerBetter?r.v<=ref:r.v>=ref;return `<div class="gb ${r.gone?"gone":""}" role="row"><span class="gn" role="cell">${r.id?`<a href="#/player/${esc(r.id)}">${esc(r.n)}</a>`:esc(r.n)}${r.gone?' <small>released</small>':""}</span><span class="gt" role="cell"><i data-w="${(100*r.v/mx).toFixed(1)}%" class="${good?"up":"dn"}"></i><b class="ref" style="left:${refx.toFixed(1)}%"></b></span><span class="gv" role="cell"><b>${r.v.toFixed(unit==="Strike rate"?0:2)}</b><small>${r.s} balls</small></span></div>`}).join("")}<p class="glegend"><b class="ref"></b> ${esc(refLabel)} ${ref.toFixed(unit==="Strike rate"?1:2)}</p></div>`}
+async function brief(){
+ if(S.g!=="men"){set(`<h1>Auction brief</h1><p class="lede">This brief covers the men's IPL. Switch to Men to read it.</p>`);return}
+ const b=await get("data/brief_rr.json"),c=b.context,L=b.league,sq=b.squad.filter(x=>x.linked),gone=(b.rr_released||[]).filter(x=>x.linked);
+ const MIN=30,batRows=[...sq,...gone].filter(x=>x.bat_death.balls>=MIN).map(x=>({n:x.player,id:x.id,v:x.bat_death.sr,s:x.bat_death.balls,gone:gone.includes(x)})).sort((a,z)=>z.v-a.v);
+ const bowlRows=[...sq,...gone].filter(x=>x.bowl_death.legal>=MIN).map(x=>({n:x.player,id:x.id,v:x.bowl_death.econ,s:x.bowl_death.legal,gone:gone.includes(x)})).sort((a,z)=>a.v-z.v);
+ const keepBat=sq.filter(x=>x.bat_death.balls>=MIN),keepBowl=sq.filter(x=>x.bowl_death.legal>=MIN);
+ const sqSR=wavg(keepBat,"bat_death"),sqEco=wavg(keepBowl,"bowl_death"),batGap=sqSR!=null?sqSR-L.bat_death.sr:0,bowlGap=sqEco!=null?sqEco-L.bowl_death.econ:0;
+ const bowlFirst=bowlGap>0&&batGap>=0,head=bowlFirst?"The money should go to the death overs, with the ball.":batGap<0?"The gap is a finisher.":"The retained death overs already hold up.";
+ const cand=b.seamers.filter(x=>x.bowl_death.legal>=MIN&&x.team!=="RR").sort((a,z)=>a.bowl_death.econ-z.bowl_death.econ).slice(0,6);
+ const tiles=Array.from({length:20},(_,i)=>`<span class="ot ${i<6?"pp":i<15?"md":"dt"}" style="--i:${i}">${i+1}</span>`).join("");
+ const sample=n=>n<60?'<span class="tag warn">Small sample</span>':n<120?'<span class="tag">Some evidence</span>':'<span class="tag ok">Stronger sample</span>';
+ set(`<article class="brief">
+ <header class="bh"><p class="bk">Independent IPL 2027 auction brief, data to ${fdate(c.as_of)}</p><h1>${esc(c.team)}: ${esc(head)}</h1>
+ <div class="overs" aria-hidden="true">${tiles}</div>
+ <p class="ol"><span>Powerplay 1-6</span><span>Middle 7-15</span><span>Death 16-20</span></p>
+ <div class="bstats"><div><b data-to="${c.purse_cr}" data-dec="2" data-pre="₹" data-suf=" cr">₹${c.purse_cr} cr</b><span>Purse left</span></div><div><b data-to="${c.slots}">${c.slots}</b><span>Slots</span></div><div><b data-to="${c.overseas}">${c.overseas}</b><span>Overseas slots</span></div><div><b data-to="${sqEco?.toFixed(2)||0}" data-dec="2">${sqEco?.toFixed(2)||"–"}</b><span>Retained bowlers' death economy, league ${L.bowl_death.econ}</span></div></div></header>
+ <section class="bsec"><h2>${sqSR==null?"Batting at the death":batGap>=0?"Batting at the death holds up":"Batting at the death falls short"}</h2><p class="lede">Strike rate in overs 16-20, IPL ${b.years.join(" and ")}, players with ${MIN}+ balls. The line marks the league rate.${sqSR==null?"":batGap>=0?` Retained batters score ${batGap.toFixed(1)} above it together.`:` Retained batters score ${Math.abs(batGap).toFixed(1)} below it together.`}</p>${gbars(batRows,L.bat_death.sr,"League","Strike rate",false)}</section>
+ <section class="bsec"><h2>${sqEco==null?"Bowling at the death":bowlGap>0?"Bowling at the death costs runs":"Bowling at the death holds up"}</h2><p class="lede">Economy in overs 16-20, lower is better.${sqEco==null?"":bowlGap>0?` Retained bowlers concede ${bowlGap.toFixed(2)} an over more than the league.`:` Retained bowlers concede ${Math.abs(bowlGap).toFixed(2)} an over less than the league.`}</p>${gbars(bowlRows,L.bowl_death.econ,"League","Economy",true)}</section>
+ <section class="bsec"><h2>Death bowlers released by other teams</h2><p class="lede">Released does not mean available: a player must also enter the auction. This list is checked again when the auction pool is published.</p>
+ <div class="pcs">${cand.map((x,k)=>`<a class="pc" href="#/player/${esc(x.id)}" style="--k:${k}"><div class="pa" style="--tc:${TEAMC[x.team]||SL(1)}"><span>${esc(ini(x.player))}</span></div><div class="pn"><b>${esc(x.player)}</b><small>Released by ${esc(x.team)}${x.overseas?", overseas":", Indian"}</small></div>
+ <dl><div><dt>Death econ</dt><dd class="${x.bowl_death.econ<=L.bowl_death.econ?"ok":"warn"}">${x.bowl_death.econ}</dd></div><div><dt>Death wkts</dt><dd>${x.bowl_death.wk}</dd></div><div><dt>Powerplay econ</dt><dd>${x.bowl_pp.legal?x.bowl_pp.econ:"–"}</dd></div><div><dt>Death balls</dt><dd>${x.bowl_death.legal}</dd></div></dl>${sample(x.bowl_death.legal)}</a>`).join("")||'<p class="empty">No released bowler has 30+ death balls in this data.</p>'}</div></section>
+ <section class="bsec two"><div><h2>What this data can't tell</h2><ul class="ticks"><li>Line, length, pace and yorker accuracy</li><li>Fitness, workload and injury history</li><li>Who will register for the auction, or their base price</li><li>Two seasons only; samples under 60 balls are a question, not an answer</li></ul></div>
+ <div><h2>How it was built</h2><ul class="ticks"><li>Every ball of IPL ${b.years.join(" and ")} from Cricsheet</li><li>Phases fixed at overs 1-6, 7-15, 16-20; super overs left out</li><li>Economy charges wides and no-balls, never byes or leg-byes</li><li>Squad and purse from the retention lists of ${fdate(c.as_of)}</li></ul><p class="mut">${b.unlinked.length} names could not be matched to the data with certainty and are left out. Independent analysis, not made by or for Rajasthan Royals.</p></div></section>
+ </article>`);
+ countUp($("#main"));growOnView($("#main"));tilt($("#main"));
+}
 async function route(){
   const h=location.hash.replace(/^#\/?/,"").split("/");
   stopRail();clearInterval(livePoll);closeMenu();$$("nav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#/"+h[0]));
   $$(".seg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.g===S.g));
-  try{await({"":home,players,player:()=>player(h[1]),compare:()=>compare(h[1]),match:()=>match(h[1]),live:()=>live(h[1]),matchups,venues,auction,news,method}[h[0]]||home)()}
+  try{await({"":home,players,player:()=>player(h[1]),compare:()=>compare(h[1]),match:()=>match(h[1]),brief,live:()=>live(h[1]),matchups,venues,auction,news,method}[h[0]]||home)()}
   catch(e){console.error(e);set(`<h1>This page couldn't load</h1><p class="lede">${esc(e.message)}. Reload the page, or check the <a href="#/method">data status</a>.</p>`)}
   window.scrollTo(0,0);
 }
