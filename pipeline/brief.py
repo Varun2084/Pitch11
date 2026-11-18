@@ -8,9 +8,9 @@ D = Path(sys.argv[1] if len(sys.argv) > 1 else "web/data")
 FULL = dict(CSK="Chennai Super Kings", DC="Delhi Capitals", GT="Gujarat Titans", KKR="Kolkata Knight Riders", LSG="Lucknow Super Giants",
             MI="Mumbai Indians", PBKS="Punjab Kings", RR="Rajasthan Royals", RCB="Royal Challengers Bengaluru", SRH="Sunrisers Hyderabad")
 YEARS = (2025, 2026)
-CONTEXT = {"team": "Rajasthan Royals", "purse_cr": 27.05, "slots": 6, "overseas": 3, "as_of": "2026-11-17", "auction": "2026-12-16",
+CONTEXT = {"team": "Rajasthan Royals", "purse_cr": 27.05, "slots": 6, "indian": 3, "overseas": 3, "as_of": "2026-11-17", "auction": "2026-12-16",
            "sources": ["https://www.rajasthanroyals.com/latest-news/ipl-2027-rr-players-retention-list-retained-released",
-                       "https://www.wisden.com/series/ipl-2027/cricket-news/ipl-2027-retention-list-full-list-retained-released"]}
+                       "https://www.wisden.com/series/ipl-2027/cricket-news/ipl-2027-retention-list-full-list-retained-released", "Cricbuzz retention graphics, 17 Nov 2026"]}
 OVERSEAS = {"Matthew Short", "Matt Henry", "Zak Foulkes", "Spencer Johnson", "Pathum Nissanka", "Ben Duckett", "Dushmantha Chameera",
             "Mitchell Starc", "Luke Wood", "Blessing Muzarabani", "Matheesha Pathirana", "Mustafizur Rahman", "Rachin Ravindra",
             "Matthew Breetzke", "Anrich Nortje", "Wanindu Hasaranga", "Trent Boult", "Allah Ghazanfar", "Keshav Maharaj", "Lockie Ferguson",
@@ -20,8 +20,8 @@ K = "inn runs balls f4 f6 dots outs binn legal conc wk bdot bb".split()
 players = json.loads((D / "men/players.json").read_text(encoding="utf-8"))
 rows = json.loads((D / "men/rows.json").read_text(encoding="utf-8"))["rows"]
 norm = lambda s: re.sub(r"[^a-z ]", "", s.lower().replace("-", " ")).split()
-ALIAS = {"Wanindu Hasaranga": "de Silva", "Kamindu Mendis": "Mendis"}
-CSNAME = {"Dasun Shanaka": "MD Shanaka"}  # checked by hand
+ALIAS = {"Yudhvir Charak": "Singh", "Aman Rao Perala": "Rao", "Wanindu Hasaranga": "de Silva", "Kamindu Mendis": "Mendis"}
+CSNAME = {"Dasun Shanaka": "MD Shanaka", "Vaibhav Sooryavanshi": "V Suryavanshi"}  # checked by hand
 
 
 def find(name, team=None):
